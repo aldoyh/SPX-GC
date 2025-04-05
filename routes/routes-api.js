@@ -12,25 +12,71 @@ const logger = require('../utils/logger');
 logger.debug('API-route loading...');
 const spx = require('../utils/spx_server_functions.js');
 const xlsx = require('node-xlsx').default;
-const { now } = require("moment");
-const { constants } = require("buffer");
+
+// --- WATCHOUT!!!! v1.3.3 disabled --------
+// const { now } = require("moment");
+// const { constants } = require("buffer");
 
 // ROUTES -------------------------------------------------------------------------------------------
 router.get('/', function (req, res) {
   res.send('Looking for this <a href="/api/v1/">api/v1</a>?');
 });
 
+
 router.get('/files', async (req, res) => {
   // Get files
   const fileListAsJSON = await GetDataFiles();
   res.send(fileListAsJSON);
-}); // files route ended
+}); // file
+
+
+/* Will go into the API in 1.3.4
+router.get('/initRemCntrRenderer', async (req, res) => {
+  // Return URL of the remote control renderer
+  let urlDomain = null // no trailing slash
+  urlDomain = 'https://<SOMETHING-HERE>.spxcloud.app' // TODO: Change this to your own domain
+  urlDomain = 'https://localhost:5656'
+  let nick = req.query.name || '';
+  let url = urlDomain + '/renderer?remote=true&name=' + nick;
+  let data = {
+    url: url,
+    name: nick,
+    msg: 'OK'
+  }
+  res.send(data);
+}); // file
+*/
+
 
 router.get('/openFileFolder/', async (req, res) => {
-  // 
-  let relpath = req.query.file
-  let filepath = path.join(spx.getStartUpFolder(), 'ASSETS', 'templates', relpath);
-  let folder = path.dirname(filepath);
+  
+  // Added in 1.3.1. And fixed in 1.3.2... 
+  // Added optional parameter forceFolder to open a different folder than templates.
+  if (config.general.disableOpenFolderCommand == true) {
+    let msg = 'openFileFolder -command disabled in config.';
+    logger.warn(msg);  
+    return res.status(403).send(msg);
+  }
+  let dirpath, folder = null;
+  if (req.query.openFolderOnly) {
+    folder = path.join(spx.getStartUpFolder(), 'ASSETS', req.query.openFolderOnly);
+    // folder = path.dirname(dirpath);
+  } else {
+    let relpath = req.query.file || '';
+    if (!req.query.file) {
+      let msg = 'openFileFolder -command requires a file parameter.';
+      logger.warn(msg);  
+      return res.status(403).send(msg);
+    }
+    filepath = path.join(spx.getStartUpFolder(), 'ASSETS', 'templates', relpath);
+    folder = path.dirname(filepath);
+  }
+
+  // Added in 1.3.1 for security: if not found nothing is done.
+  if (!fs.existsSync) {
+    logger.error('Folder ' + folder + ' does not exist.');
+    return res.status(404).send('Folder ' + folder + ' does not exist.');
+  }
 
   // open folder in each operating system
   if (process.platform === 'darwin') {
@@ -42,24 +88,25 @@ router.get('/openFileFolder/', async (req, res) => {
   } else {
     logger.error('Unknown operating system: ' + process.platform);
   }
-
-  
   res.sendStatus(200)
-}); // files route ended
+}); // openFileFolder of a template for editing
+
 
 router.get('/licBasic/', async (req, res) => {
-  // added in 1.1.1 - license check. Format:
+  // added in 1.1.1 - license check. Minor tweaks in 1.1.3
+  // Format:
   // 4x?rot(pmac)10x? | AA-AA-33-UQ-GZ-ZX-BB-BB-BB-BB
   // Not safe because it is not encrypted.
   let stripd = req.query.str.replace(/-/g, '');  // strip dashes
   let rotlic = stripd.substring(4,12); // get 8 chars
   // console.log('rotlic // from: ' + rotlic + ' to ' + spx.rot(rotlic, true) + ' vs ' + global.pmac.toUpperCase());
   if (spx.rot(rotlic, true) === global.pmac.toUpperCase()) {
-    res.sendStatus(200); // OK
+    res.status(200).send('{result:ok}');
   } else {
-    res.sendStatus(403); // Forbidden
+    res.status(403).send('{result:invalid}');
   }
-});
+}); // GET licBasic check ended
+
 
 router.get('/rotBasic/', async (req, res) => {
   // Require host-id, returns key.
@@ -68,7 +115,8 @@ router.get('/rotBasic/', async (req, res) => {
   let revlic = spx.rot(rotlic, true);
   let json = "{\"pmac\":\"" + global.pmac + "\",\"rot\":\"" + rotlic + "\",\"soclic\":\"" + soclic + "\",\"chk\":\"" + revlic + "\"}";
   res.send(json);
-});
+}); // GET rotBasic/?id=12345678
+
 
 router.get('/logger/', async (req, res) => {
   // Minimalistic GET logger for template messages
@@ -80,7 +128,8 @@ router.get('/logger/', async (req, res) => {
   // console.log(msg);
   eval('logger.' + level + '(msg)'); // nasty, eh?
   res.sendStatus(200)
-}); // files route ended
+}); // GET logger route ended
+
 
 router.post('/logger/', async (req, res) => {
   // Minimalistic POST logger for template messages
@@ -92,7 +141,7 @@ router.post('/logger/', async (req, res) => {
   // console.log(msg);
   eval('logger.' + level + '(msg)'); // nasty, eh?
   res.sendStatus(200)
-}); // files route ended
+}); // POST logger route ended
 
 
 router.post('/browseFiles/', async (req, res) => {
@@ -121,7 +170,7 @@ router.post('/browseFiles/', async (req, res) => {
   const fileListAsJSON = await spx.GetFilesAndFolders(navigateTo, extension);
   fileListAsJSON.message=feedbackMs; // force feedback message to UI at RenderFolder()
   res.send(fileListAsJSON);
-}); // browseFiles API post request end
+}); // POST browseFiles API route ended
 
 
 router.post('/heartbeat/', async (req, res) => {
@@ -153,10 +202,7 @@ router.post('/heartbeat/', async (req, res) => {
     res.status(500).send(error);
   };
   
-}); // browseFiles API post request end
-
-
-
+}); // POST heartbeat 
 
 
 router.post('/readExcelData', async (req, res) => {
@@ -197,35 +243,51 @@ router.post('/readExcelData', async (req, res) => {
     logger.error('Error in api/readExcelData while reading Excel ' + excelFile + ": " + error);
     res.status(500).send(error);  }; // Server error
     return;
-});
-
-
+}); // POST readExcelData to get Excel data from file
 
 
 router.post('/savefile/:filebasename', async (req, res) => {
-  // FIXME: Function not in use?
   spx.talk('Saving file ' + req.params.filebasename);
-
-  // save data to the file
-  let datafile = path.join(directoryPath, req.params.filebasename) + '.json';
-  logger.debug('Saving file ' + datafile + '...');
-  
-  let data = req.body;
   try {
+    if (!req.params.filebasename) {
+      throw new Error("Filename missing, cannot save file.");
+    }
+    let datafile = path.join(directoryPath, req.params.filebasename) + '.json';
+    logger.debug('Saving file ' + datafile + '...');
+    let data = req.body;
     await spx.writeFile(datafile,data);
+    res.status(200).send('OK, created file ' + datafile); // ok 200 AJAX RESPONSE
   } catch (error) {
     logger.error('Error while saving ' + datafile + ': ' + err);
+    res.status(500).send(error);
   }; //file written
+}); // POST savefile API route ended
 
-  // let filedata = JSON.stringify(req.body, null, 2);
-  // fs.writeFile(datafile, filedata, (err) => {
-  //   if (err) {
-  //     logger.error('Error while saving ' + datafile + ': ' + err);
-  //     throw err;
-  //   }
-  //   logger.info('Updated file ' + datafile);
-  // });
-});
+router.post('/saverundownfile/:projectName/:rundownName', async (req, res) => {
+  // Added in 1.3.0
+  // Used by extensions that will modify rundowns and save them back to the server.
+  // This will also send a message to the UI to request a reload.
+  console.log('Saving rundown file ' + req.params.rundownName + ' in project ' + req.params.projectName + '...');
+  try {
+    if (!req.params.projectName || !req.params.rundownName) {
+      throw new Error("Project or filename missing from request, cannot save file.");
+    }
+    let datafile = path.join(directoryPath, req.params.projectName, 'data', req.params.rundownName) + '.json';
+    logger.debug('Saving rundown file ' + datafile + '...');
+    let data = req.body;
+    await spx.writeFile(datafile,data);
+    io.emit('SPXMessage2Client', {
+      spxcmd: "showMessageSlider",
+      msg:    "⛔ Rundown data was modified by API. Reload view!",
+      type:   "warn",
+      persist: true
+    });
+    res.status(200).send('OK, created file ' + datafile); // ok 200 AJAX RESPONSE
+  } catch (error) {
+    logger.error('Error in api/saverundownfile' + error);
+    res.status(500).send(error);
+  }; //file written
+}); // POST savefile API route ended
 
 
 router.post('/exportCSVfile', async (req, res) => {
@@ -233,7 +295,7 @@ router.post('/exportCSVfile', async (req, res) => {
   try {
     let showFolder  = req.body.foldername || "";
     let datafile    = req.body.datafile || "";
-    let dataJSONfile= path.join(spx.getStartUpFolder(), 'ASSETS', '..', 'DATAROOT', showFolder, 'data', datafile + '.json');
+    let dataJSONfile= path.join(spx.getDatarootFolder(), showFolder, 'data', datafile + '.json'); // Changed in 1.3.1
     let rundownData = await spx.GetJsonData(dataJSONfile);
     let CSVdata = ''
 
@@ -332,10 +394,7 @@ router.post('/exportCSVfile', async (req, res) => {
   } catch (error) {
     logger.error('API error in exportCSVfile(): ', error);
   }; //file written
-});
-
-
-
+}); // POST exportCSVfile end
 
 
 // FUNCTIONS -------------------------------------------------------------------------------------------

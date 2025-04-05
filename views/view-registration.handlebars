@@ -36,6 +36,17 @@
   body {
     overflow: auto !important;
   }
+
+  #email,
+  #freetext {
+    padding: 0.25em;
+  }
+
+  #email::placeholder,
+  #freetext::placeholder {
+    color: #ffffff5b;
+    text-shadow: none;
+  }
     
   </style>
 
@@ -57,7 +68,8 @@
       msg = "Really?\n\nRegistration is an important " +
             "feedback mechanism for us to understand who is using SPX " +
             "and we would like encourage to help us by submitting some " +
-            "info about you. Everything is optional. All help is highly appreciated!";
+            "info about you. Everything is optional. All help is highly appreciated!\n\n" + 
+            "Click OK to skip registration.";
       if (confirm(msg)) {
         document.location = '/';
       }
@@ -333,7 +345,7 @@
                         <option value="Uganda">Uganda</option>
                         <option value="United Kingdom">United Kingdom</option>
                         <option value="Ukraine">Ukraine</option>
-                        <option value="United Arab Erimates">United Arab Emirates</option>
+                        <option value="United Arab Emirates">United Arab Emirates</option>
                         <option value="United States of America">United States of America</option>
                         <option value="Uraguay">Uruguay</option>
                         <option value="Uzbekistan">Uzbekistan</option>
@@ -352,6 +364,27 @@
                         <option value="other">Other</option>
                       </select>
                      
+                    </td>
+                  </tr>
+                </table>
+
+                <table style="width: 100%; border-radius:0em; background-color: #0000003a; margin-top: 0.2em;" cellspacing="15" border="0">
+                  <tr>
+                    <td class="vmid spxConfigHead wrap" style="width: 30%;">
+                      Industry
+                      <div style="font-size: 0.7em; margin-top: 1em; opacity: 0.7;">
+                        What is your main focus?
+                      </div>
+                    </td>
+                    <td class="vmid">
+                      <select class="wide drop bg_grey" name="indus">
+                        <option {{{ifValueMatch config.registration.indus "empty" "selected" ""}}} value = "empty"></option>
+                        <option {{{ifValueMatch config.registration.indus "broad" "selected" ""}}} value = "broad">Broadcast TV</option>
+                        <option {{{ifValueMatch config.registration.indus "strea" "selected" ""}}} value = "strea">Streaming</option>
+                        <option {{{ifValueMatch config.registration.indus "event" "selected" ""}}} value = "event">Events</option>
+                        <option {{{ifValueMatch config.registration.indus "educa" "selected" ""}}} value = "educa">Education</option>
+                        <option {{{ifValueMatch config.registration.indus "other" "selected" ""}}} value = "other">Other</option>
+                      </select>
                     </td>
                   </tr>
                 </table>
@@ -412,7 +445,12 @@
                       </div>
                     </td>
                     <td class="vmid">
-                      <textarea class="wide drop bg_grey" style="height: 6em;" name="freetext" id="freetext">{{config.registration.freetext}}</textarea>
+                      <textarea class="wide drop bg_grey"
+                                style="height: 6em;"
+                                name="freetext"
+                                style=""
+                                placeholder="Feedback, comments, ideas, etc."
+                                id="freetext">{{config.registration.freetext}}</textarea>
                       </td>
                   </tr>
                 </table>
@@ -427,28 +465,18 @@
                       </div>
                     </td>
                     <td class="vmid">
-                      <input type="text" class="wide drop bg_grey" name="email" id="email" value="{{config.registration.email}}" oninput="checkEmail(this)">
+                      <input type="text" class="wide drop bg_grey"
+                      placeholder="name@inter.net"
+                      name="email" id="email" value="{{config.registration.email}}" oninput="checkEmail(this)">
                       <div style="font-size: 0.6em; margin-top: 1em; opacity: 0.5;">
-                        All users registered with an email will receive a <span class="fg_orange">20%
-                        discount code</span> for any purchase in the <a href="https://spx.graphics/store">SPX Store</a>! 
-                        <BR><BR>
-                        <div id="checks" {{{ifValueMatch config.registration.email "" "style='opacity:0.3;'" ""}}}>
+                        <div id="checks">
                           <input  {{{ifValueMatch config.registration.newsletter true "checked" ""}}}
-                                  {{{ifValueMatch config.registration.email "" "disabled" ""}}}
                                   type="checkbox"
                                   name="newsletter"
                                   id="newsletter"
                                   style="transform: scale(1.5);"
                                   >&nbsp;&nbsp;Join SPX newsletter (max 4 messages/year)
                           <BR>
-                          <input  {{{ifValueMatch config.registration.discord true "checked" ""}}}
-                                  {{{ifValueMatch config.registration.email "" "disabled" ""}}}
-                                  {{!-- type="checkbox" --}}
-                                  type="hidden"
-                                  name="inviteDiscord"
-                                  id="inviteDiscord"
-                                  style="transform: scale(1.5);"
-                                  >&nbsp;&nbsp;Send me invite to SPX Discord
                         </div>
                       </div>
                     </td>
@@ -472,7 +500,7 @@
                   </tr>
                 </table>
                       <span style="font-size: 0.55em; opacity:0.9; color:#000000;">
-                        v.{{{ShowVersion}}} | <a href="https://spx.graphics">&copy; 2022 Softpix</a>
+                        v.{{{ShowVersion}}} | <a href="https://spx.graphics">&copy; 2020- SPX Graphics</a>
                       </span>
               </td>
             </tr>

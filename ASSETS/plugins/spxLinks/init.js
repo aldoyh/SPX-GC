@@ -14,12 +14,16 @@ function PluginInstance() {
             color:          "green",
             items: [
                 {
-                    "text": "SPX Discord",
-                    "value":"https://bit.do/joinspx"
+                    "text": "SPX Cloud",
+                    "value":"https://spxcloud.app"
                 },
                 {
-                    "text": "SPX Store",
-                    "value":"https://spx.graphics/store"
+                    "text": "SPX Discord",
+                    "value":"https://bit.ly/joinspx"
+                },
+                {
+                    "text": "HTML Marketplace",
+                    "value":"https://html.graphics/marketplace"
                 },
                 {
                     "text": "Knowledge Base",
@@ -28,6 +32,10 @@ function PluginInstance() {
                 {
                     "text": "Give feedback",
                     "value": "https://forms.gle/T26xMFyNZt9E9S6d8"
+                },
+                {
+                    "text": "Latest Changes",
+                    "value": "https://spxgc.tawk.help/article/latest-changes"
                 },
                 {
                     "text": "Discuss Features",

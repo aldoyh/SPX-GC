@@ -1,5 +1,5 @@
 /*
-  Copyright 2020 SmartPX
+  Copyright 2020 Softpix
   CSS file for form items. Loaded after spx_layout.css
 */
 
@@ -45,8 +45,8 @@
     font-family: "UI-Bold", Arial, Helvetica, sans-serif;
     text-shadow: rgb(0, 0, 0, 0.4) 0 0px 8px;
     box-shadow: rgb(0, 0, 0, 0.4) 0 3px 8px;
-    padding-inline-start: 10px;
-    padding-inline-end: 10px;
+    padding-inline-start: 0.4em;
+    padding-inline-end: 0.4em;
     margin-left: auto;
     margin-right: auto;
     cursor: pointer;
@@ -60,18 +60,16 @@
     font-size: 0.8em;
     color: white;
     border: 2px solid transparent;
-    /* margin-left: 0.1em; */ 
-    /* margin-right: 0.1em; */ 
     text-transform: uppercase;
     font-family: "UI-Bold", Arial, Helvetica, sans-serif;
     text-shadow: rgb(0, 0, 0, 0.4) 0 0px 8px;
     box-shadow: rgb(0, 0, 0, 0.4) 0 3px 8px;
-    /* padding-inline-start: 5px; */
     user-select: none;
     cursor: pointer;
     padding: 0.4em 0; 
-    /* padding: 0.5em 0; */
     margin-bottom: 0.1em;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .btn:hover {
@@ -456,4 +454,8 @@
       box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.5),
                   inset 0 -4px 10px rgba(0, 0, 0, 0.3);
       
+  }
+
+  .selectAll {
+    font-size: 2em;
   }

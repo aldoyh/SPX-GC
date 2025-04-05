@@ -1,4 +1,6 @@
 
+let showMessageTimer = null;
+
 function removeExtraIndex(formNro) {
   //console.log('Removing extra index ' + formNro);
   data={
@@ -65,6 +67,12 @@ function RenderFolder(data) {
   }
 
   // populate folders
+  // sort folders by name, case insensitive
+  data.foldArr.sort(function(s1, s2){
+      var l=s1.toLowerCase(), m=s2.toLowerCase();
+      return l===m?0:l>m?1:-1;
+  });
+
   data.foldArr.forEach((folder,i) => {
     var node = document.createElement("LI");
     node.classList.add("filebrowser_folder");
@@ -78,6 +86,13 @@ function RenderFolder(data) {
   });
 
   // populate files
+  // sort files by name, case insensitive
+  data.fileArr.sort(function(s1, s2){
+    var l=s1.toLowerCase(), m=s2.toLowerCase();
+    return l===m?0:l>m?1:-1;
+  });
+
+  
   data.fileArr.forEach((file,i) => {
     var node = document.createElement("LI");
     node.classList.add("filebrowser_file");
@@ -133,17 +148,39 @@ function openFolder(fromFolder, toFolder, rootFolder='') {
 
 
 function highlightFile(e) {
-    // Clicked
-    var fils = document.getElementsByClassName("filebrowser_file");
-    var fi;
-    for (fi = 0; fi < fils.length; fi++) {
-      fils[fi].classList.remove('selectedFile');
-    }
-    // console.log(e.target.parentElement);
-    setTimeout(function () { e.target.parentElement.classList.add('selectedFile'); }, 10);
-    document.getElementById('btnChooseTemplate').style.opacity=1;
-    showMessage(e.target.innerText);
+  // Clicked an item to select it for importing
+  // Improved in 1.1.5 to support multiple selection
+  let templateItem  = e.target.parentElement;
+  let templateItems = document.getElementsByClassName("filebrowser_file");
+  let selectedItems = document.getElementsByClassName("selectedFile");
+
+  if (e.ctrlKey==false) {
+    // Ctrl was not pressed, so we clear all selections
+    Array.prototype.forEach.call(templateItems, function(el) {
+      el.classList.remove('selectedFile')
+    });
   }
+
+  if (templateItem.classList.contains('selectedFile')) {
+    templateItem.classList.remove('selectedFile')
+  } else {
+    templateItem.classList.add('selectedFile')
+  }
+
+  // Update Select button and show message
+  selectedItems = document.getElementsByClassName("selectedFile");
+  if (selectedItems.length>0) {
+    document.getElementById('btnChooseTemplate').style.opacity=1;
+    if (selectedItems.length==1) {
+      showMessage(e.target.innerText+ ' template selected.');
+    } else {
+      showMessage(selectedItems.length + ' templates selected.');
+    }
+  } else {
+    document.getElementById('btnChooseTemplate').style.opacity=0.2;
+    showMessage('');
+  }
+} // highlightFile
 
 function applyFileSelection(e) {
     // DblClicked to apply the selection
@@ -152,8 +189,8 @@ function applyFileSelection(e) {
     for (fi = 0; fi < fils.length; fi++) {
       fils[fi].classList.remove('selectedFile');
     }
-    setTimeout(function () { e.target.parentElement.classList.add('selectedFile'); }, 10);
-    setTimeout(function () { openSelectedFile(); }, 50);
+    setTimeout(function () { e.target.parentElement.classList.add('selectedFile'); }, 50);
+    setTimeout(function () { openSelectedFiles(); }, 50);
   }
 
 
@@ -179,21 +216,55 @@ function addShowScript() {
   }
 
 function openSelectedFile() {
-    var fils = document.getElementsByClassName("filebrowser_file");
-    var fi;
-    for (fi = 0; fi < fils.length; fi++) {
-      if (fils[fi].classList.contains('selectedFile')) {
-        let data={};
-        data.command = 'addtemplate';
-        data.curFolder = document.getElementById('curfolder').innerText;
-        data.template = fils[fi].innerText;
-        data.showFolder = document.getElementById('showfolder').value;
-        // alert('Fire baby burn: ' + data.template);
-        post('', data, 'post');
-        break;
-      }
-    }
+    // original single file selection
+    alert('FIXME: openSelectedFile() is not in use anymore.');
+    return;
+    // var fils = document.getElementsByClassName("filebrowser_file");
+    // var fi;
+    // for (fi = 0; fi < fils.length; fi++) {
+    //   if (fils[fi].classList.contains('selectedFile')) {
+    //     let data={};
+    //     data.command = 'addtemplate';
+    //     data.curFolder = document.getElementById('curfolder').innerText;
+    //     data.template = fils[fi].innerText;
+    //     data.showFolder = document.getElementById('showfolder').value;
+    //     post('', data, 'post');
+    //     break;
+    //   }
+    // }
   }
+
+
+// Accepts one or multiple file selection
+function openSelectedFiles() {
+    console.log('openSelectedFiles()');
+    let data={};
+    data.curFolder = document.getElementById('curfolder').innerText;
+    data.showFolder = document.getElementById('showfolder').value;
+    data.templates = [];
+    var selectedTemplates = document.getElementsByClassName("selectedFile");
+    Array.prototype.forEach.call(selectedTemplates, function(el) {
+      data.templates.push(el.innerText);
+    });
+
+
+    if (data.templates.length==1) {
+      data.command = 'addtemplate';
+      data.template = data.templates[0];
+      console.log('Adding a single template', data);
+      post('', data, 'post');
+      return;
+    } else if (data.templates.length>1) {
+      data.command = 'addtemplates';
+      data.templates = JSON.stringify(data.templates);
+      console.log('Adding multiple templates', data);
+      post('', data, 'post');
+      return;
+    } else {
+      showMessage('No templates selected!');
+      return;
+    }
+  } // openSelectedFiles [multiple]
 
 
 function goUp() {
@@ -214,8 +285,32 @@ function goUp() {
 
 function showMessage(msg) {
     document.getElementById('browserMessage').innerText=msg;
-    setTimeout('document.getElementById(\'browserMessage\').innerText="";', 2000);
+    clearTimeout(showMessageTimer);
+    showMessageTimer = setTimeout('document.getElementById("browserMessage").innerText="";', 2000);
   }
+
+function toggleAll() {
+    // toggle all files in the folder
+    var allItems = document.getElementsByClassName("filebrowser_file");
+    var selItems = document.getElementsByClassName("selectedFile");
+    if (allItems.length > selItems.length) {
+      // most not selected, so select all
+      Array.prototype.forEach.call(allItems, function(el) {
+        el.classList.add('selectedFile')
+      });
+      document.getElementById('btnChooseTemplate').style.opacity=1;
+      showMessage('All ' + allItems.length + ' templates selected.');
+      document.getElementById('allToggle').innerText=document.getElementById('allToggle').getAttribute('data-none-label');
+    } else {
+      // most selected, so deselect all
+      Array.prototype.forEach.call(allItems, function(el) {
+        el.classList.remove('selectedFile')
+      });
+      document.getElementById('btnChooseTemplate').style.opacity=0.2;
+      document.getElementById('allToggle').innerText=document.getElementById('allToggle').getAttribute('data-all-label');
+      showMessage('');
+    }
+}
 
 
 function applyFileBrowserHandlers() {

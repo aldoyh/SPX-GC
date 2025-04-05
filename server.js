@@ -2,13 +2,13 @@
 // ===============================================================
 //
 // "SPX Graphics Controller"
-// (c) 2020-2022 Softpix (https://spx.graphics)
+// (c) 2020- SPX Graphics (https://spx.graphics)
 // 
 // An open source PROFESSIONAL LIVE GRAPHICS solution for
 // PC, Mac, Linux or the cloud. 
 //
 // Website .......... https://spx.graphics
-// Join Discord ..... https://bit.do/joinspx
+// Join Discord ..... https://bit.ly/joinspx
 // Knowledge Base ... https://spxgc.tawk.help
 // Sourcecode ....... https://github.com/TuomoKu
 // 
@@ -77,18 +77,18 @@ app.use(express.static(path.join(__dirname,('static'))))                    // t
 app.use(express.static(path.resolve(spx.getStartUpFolder(),'ASSETS')))      // http root in startup folder / ASSETS
 
 const ipad = ip.address();
-const open = require('open');
+
 var pjson = require('./package.json');
 var packageversion = pjson.version;
 const vers = process.env.npm_package_version || packageversion || 'X.X.X';
 
-global.isDev = process.env.SPX_ROOT_FOLDER ? true : false;
+// global.isDev = process.env.SPX_ROOT_FOLDER ? true : false; // value used internally for SPX & Template dev
 global.vers = vers;
-global.excel = {'readtime':0000, 'filename':'', 'data':''}; // used as Excel cache
+global.excel = {'readtime':0, 'filename':'', 'data':''}; // used as Excel cache
 
 // Added in 1.1.1.
 global.env = {'vendor':'', 'product':'', 'version':''};
-let envIdfile = './env.json'
+let envIdfile = path.resolve(spx.getStartUpFolder(),'env.json') // fixed post 1.1.2
 if (fs.existsSync(envIdfile)) {
   var spxenv = require(envIdfile);
   if (spxenv.vendor) {global.env.vendor = spxenv.vendor;}
@@ -110,22 +110,6 @@ macaddress.one(function (err, mc) {
   let pseudomac = macaddress.split(':').join('').substring(0,8);
   global.hwid = config.general.hostname || pseudomac;
   global.pmac = pseudomac; // an anonymous id
-
-  if (isDev)  {
-    // just dev related test stuff
-    let scrambled = spx.rot(pseudomac);
-    let unscrambd = spx.rot(scrambled, true);
-    console.log('\n  WE ARE IN DEV ENVIRONMENT.');
-    console.log('  pmac = ' + pseudomac);
-    console.log('  rot  = ' + scrambled);
-    console.log('  unsc = ' + unscrambd);
-    console.log('\n  vendor: ' + global.env.vendor + '\n  product: ' + global.env.product + '\n  version: ' + global.env.version + '\n');
-    console.log('');
-    console.log('Config', config);
-    console.log('');
-  }
-  
-
 });
 
 
@@ -140,8 +124,8 @@ var accessLogStream = rfs.createStream('access.log', {
 app.use(morgan('combined', { stream: accessLogStream }))
 
 
-// Handlebars templating
-app.engine('handlebars', exphbs({
+// Handlebars templating, updated in 1.3.3
+app.engine('handlebars', exphbs.engine({
   extname: '.handlebars',
   //defaultLayout: 'filelist',
   helpers: {
@@ -188,7 +172,7 @@ app.engine('handlebars', exphbs({
     },
 
     // populate CasparCG options for show config templates
-    generateDataFormatOptions(currentDataformat='xml') {
+    generateDataFormatOptions(currentDataformat='json') {
       let html="";
       let AvailableFormats=['json', 'xml'];
       
@@ -378,7 +362,7 @@ app.engine('handlebars', exphbs({
       showProfileData = spx.GetJsonData(profileFile);
       if(!showProfileData.templates) {
         // if no templates assigned to this project
-        html += '<span style="display: inline-block; margin: 10px;padding: 0.6em 1.7em; background: #0000001c; color:#ffffff; font-size:0.7em; border-radius:2em; text-align:center;">' + spx.lang('warning.notemplates') + '</span>';
+        html += '<span style="display: inline-block; width: 100%; margin: 10px;padding: 0.6em 1.7em; background: #0000001c; color:#ffffff; font-size:0.7em; border-radius:2em; text-align:center;">' + spx.lang('warning.notemplates') + '</span><br><br>';
         return html
       } 
       showProfileData.templates.forEach((template,i) => {
@@ -453,8 +437,7 @@ app.engine('handlebars', exphbs({
     },
 
     // populate out options for show config templates
-    generateOutOptions(currentOut)
-    {
+    generateOutOptions(currentOut) {
       logger.debug('Generating out options. This selection: ' + currentOut + '.');
       let html="";
       let AvailableOptions=[
@@ -478,8 +461,7 @@ app.engine('handlebars', exphbs({
 
 
     // populate WebPlayout options for show config templates
-    generateWebPlayoutOptions(currentLayer='-')
-    {
+    generateWebPlayoutOptions(currentLayer='-') {
       logger.debug('Generating webplayout options. This selection: ' + currentLayer + '.');
       let html="";
       let AvailableLayers=['-',1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
@@ -502,8 +484,7 @@ app.engine('handlebars', exphbs({
 
 
     // generate radio buttons for show config templates
-    generateColorAccents(selectedIndex, templateIndex)
-    {
+    generateColorAccents(selectedIndex, templateIndex) {
       let colors=['gra','red','ora','gre','blu','pin','vio','bla'];
       let html ="";
       let sel = "";
@@ -521,6 +502,41 @@ app.engine('handlebars', exphbs({
       return myIP;
     },
 
+
+    // Returns resolution options for App Config > resolution
+    // Added in 1.3.0
+    generateResolutionOptions: function (resolutionOption) {
+      let html = '';
+      let options = [
+        { 'value': 'HD', 'text': 'HD (1080p)' },
+        { 'value': '4K', 'text': '4K (2160p)' },
+        { 'value': 'AUTO', 'text': 'AUTO (responsive)' },
+      ];
+
+      let selectedFound = false;
+      options.forEach((opt,i) => {
+        let sele = '';
+        if (opt.value.toUpperCase() == resolutionOption.toUpperCase()) {
+          selectedFound = true;
+          sele = 'selected'
+        };
+        html += '<option ' + sele + ' value=' + opt.value + '>' + opt.text + '</option>\n';
+      });
+      return html;
+    },
+
+    // See if cssSizeValue has 'vh' or 'vw' in it then return HD values
+    // Added in 1.3.0
+    localPreviewSize: function (cssSizeValue) {
+      if (cssSizeValue.includes('vw')) {
+        return '1920';
+      } else if (cssSizeValue.includes('vh')) {
+        return '1080';
+      } else {
+        return cssSizeValue;
+      }
+    },
+
     // Returns unique ID for this host machine
     getHostID: function () {
       return global.pmac;
@@ -534,7 +550,7 @@ app.engine('handlebars', exphbs({
         let BrowseFolder = path.join(spx.getStartUpFolder(), 'ASSETS', 'plugins');
         const list = spx.GetFilesAndFolders(BrowseFolder);
         list.foldArr.forEach(pluginName => {
-          if ( pluginName.charAt(0) == '_' || pluginName === 'lib' ) {
+          if ( pluginName.charAt(0) == '_' || pluginName.charAt(0) == '.' || pluginName === 'lib' ) {
             html += '<!-- Note: disabled plugin ' + pluginName + ' skipped. -->\n'
           } else {
             logger.verbose('Loading plugin ' + pluginName );
@@ -558,10 +574,35 @@ app.engine('handlebars', exphbs({
       return spx.lang(str);
     },
 
+    // Replace underscores with spaces (used by breadcrumbs)
+    prettyfyBreadcrumb(str) {
+      let fixed = str
+      fixed = fixed.replace(/_/g, ' ');
+      fixed = fixed.replace(/-/g, ' ');
+      return fixed;
+    },
+
+
+    // Return object as JSON string
+    myStringify(obj) {
+        return "// Stringified JSON\n\n" + JSON.stringify(obj, null, 4);
+    },
 
     // Get template name from filepath
     nameFromTemplatePath(filepath) {
         return spx.prettifyName(filepath);
+    },
+
+
+    // Check config and return value
+    allowOpeningFolder() {
+      let disableButton = config.general.disableOpenFolderCommand || false;
+      // console.log('allowOpeningFolder: ' + disableButton);
+      if (disableButton==true || disableButton=="true") {
+        return 'disabled';
+      } else {
+        return '';
+      }
     },
 
 
@@ -571,15 +612,13 @@ app.engine('handlebars', exphbs({
     },
 
     // generate checkbox to appconfig
-    // "launchchromeatstartup":"false"
-    // Feature most likely only works on Windows...?
-    OpenChromeCheck(){
-      let launchChrome = config.general.launchchromeatstartup || false;
-      if (launchChrome){
-        return '<input type="checkbox" checked name="general[launchchromeatstartup]">';
+    OpenChromeCheck() {
+      let launch = config.general.launchBrowser || false;
+      if (launch){
+        return '<input type="checkbox" checked name="general[launchBrowser]">';
       }
       else {
-        return '<input type="checkbox" name="general[launchchromeatstartup]">';
+        return '<input type="checkbox" name="general[launchBrowser]">';
       }
     },
 
@@ -677,7 +716,7 @@ app.engine('handlebars', exphbs({
     // Note: these files are returned as http-assets from SPX server
     // Feature added in 1.0.3. and improved in 1.0.6, 1.0.9
     // v1.0.15 adds relative assets (within template root folder).
-    PopulateFilelistOptions(assetfolder, extension, value, relpath=''){
+    PopulateFilelistOptions(assetfolder, extension, value, relpath='') {
       let html = '';
       let sel = '';
       let fullFilePath = '';
@@ -738,6 +777,32 @@ app.engine('handlebars', exphbs({
       }
       return html;
       // end serverstatus
+    },
+
+    // See if there is custom content packages in the ASSETS folder
+    DetectCustomContentPackages() {
+      try {
+        const fileref = path.join(spx.getStartUpFolder(), 'ASSETS', 'spx-content-repo.txt');
+        if (fs.existsSync(fileref)) {
+          var contents = fs.readFileSync(fileref, 'utf8') || '';
+          if (contents == 'CONTENT_FULL') {
+            logger.debug('DetectCustomContentPackages: CONTENT_FULL');
+            return '';
+          } else {
+            logger.debug('DetectCustomContentPackages: returns ' + contents);
+            return '<div class="namedContentIndicator">' + contents + '</div>';
+          }
+        } else {
+          // No file found, return empty string 
+          return '';
+        }
+        
+      }
+      catch (error) {
+        logger.error('DetectCustomContentPackages Error: ' + error);
+        return "";
+      }
+      // end DetectCustomContentPackages
     },
 
     // What renderer options to generate into controller options.
@@ -806,40 +871,57 @@ app.use('/api/', ROUTEfiles);
 const ROUTEpubAPIv1 = require('./routes/routes-api-v1.js');
 app.use('/api/v1/', ROUTEpubAPIv1);
 
+let OSCport = null;
+if (config.osc?.enable) {
+  const ROUTEosc = require('./routes/routes-osc.js');
+  OSCport = config.osc.port || 5666;
+  app.use('/osc/', ROUTEosc);
+} else {
+  const ROUTEosc = require('./routes/routes-osc-disabled.js');
+  app.use('/osc/', ROUTEosc);
+}
+
 const ROUTEapp = require('./routes/routes-application.js');
 app.use('/', ROUTEapp);
 
 const ROUTEccg = require('./routes/routes-casparcg.js');
+//const e = require('express')
 app.use('/CCG', ROUTEccg);
 
 process.on('uncaughtException', function(err) {
+  logger.error('Uncaught Exception: ' + err);
   if(err.errno === 'EADDRINUSE') {
-    console.log('Process failed! [' + err + ']'); // most likely app running on this port already
+    console.log('Process failed! Port is in use? [' + err + ']'); // most likely app running on this port already
     setTimeout(function(){ process.exit(3); }, 2000);
+  } else if (err.errno === 'ENOENT') {
+    console.log('File not found error detected! [' + err + ']');
   } else {
     console.log('\n\nThis error in unhandled, consider SPX restart! ', err); // Added in 1.1.1
-    // console.log('Killing process because of error ' + err);
-    // setTimeout(function(){ process.exit(5); }, 2000);
   }
 });    
 
 
 var server = app.listen(port, (err) => {
 
-  let splash = '  Copyright 2020-2022 Softpix\n\n' +
-  `  SPX version ............ ${global.vers}\n` +  
-  '  License ................ See LICENSE.txt\n' +
-  '  Homepage ............... https://spx.graphics\n' +
-  '  Template Store ......... https://spx.graphics/store\n' +
-  '  Knowledge Base ......... https://spxgc.tawk.help\n' +
-  `  Config file ............ ${configfileref}\n`  +
-  `  Cfg / locale ........... ${config.general.langfile}\n`  +
-  `  Cfg / host-id and name . ${global.pmac} ${config.general.hostname}\n`  +
-  `  Cfg / loglevel ......... ${config.general.loglevel} (options: error | warn | info | verbose | debug )\n` + 
-  `  Cfg / dataroot ......... ${path.resolve(config.general.dataroot)}\n`  +  
-  /*`  Cfg / template files ... ${path.resolve(config.general.templatefolder)}\n`  + */ 
-  `  Cfg / logfolder ........ ${logDirectory}\n`; 
+  let splash = '  Copyright 2020- SPX Graphics\n\n' +
+  `  SPX Server version ........ ${global.vers}\n` +  
+  '  License ................... See LICENSE.txt\n' +
+  `  Config file ............... ${configfileref}\n`  +
+  `  Cfg / locale .............. ${config.general.langfile}\n`  +
+  `  Cfg / host-id (name) ...... ${global.pmac} (${config.general.hostname})\n`  +
+  `  Cfg / loglevel ............ ${config.general.loglevel} (options: error | warn | info | verbose | debug )\n` + 
+  `  Cfg / dataroot ............ ${path.resolve(config.general.dataroot)}\n`  +  
+  `  Cfg / logfolder ........... ${logDirectory}\n`; 
   /* `  Cfg / lauchchrome ...... ${config.general.launchchrome}\n` */
+
+  if (config.general.apikey && config.general.apikey != '') {
+    splash += `  Cfg / apikey ........... Set in config.json\n`;
+  }
+
+  if (config.osc?.enable) {
+    splash += `  OSC enabled ............ port ${OSCport}\n`;
+  }
+
   
   // Where are CasparCG templates loaded from (file:// or http://):
   let TemplatesFromInfo;
@@ -854,8 +936,14 @@ var server = app.listen(port, (err) => {
   // `  Cfg / templatesource ... ${TemplatesFromInfo}\n\n`  +  
   // `  See README.pdf and Knowledge Base for more info\n` + 
   // `  and please visit spx.graphics/store to support us.\n\n` +  
-  `\n  Visit spx.graphics/contact for SPX Creative Services.`; 
-  
+  `\n  Explore SPX Graphics related resources:` +  
+  `\n  + Homepage ................ https://spx.graphics` +  
+  `\n  + Knowledge Base .......... https://spxgc.tawk.help` +  
+  `\n  + SPX in the Cloud ........ https://spxcloud.app` + 
+  `\n  + Creative Services ....... https://spx.graphics/contact` +  
+  `\n  + SPX Graphics for Zoom ... https://spxzoom.com` +
+  `\n  + Buy and sell templates .. https://html.graphics/marketplace`;
+
   console.log(splash);
 
   let prompt = 'Open SPX in a browser:';
@@ -874,44 +962,33 @@ var server = app.listen(port, (err) => {
     spacer = " ".repeat(maxWid-minWid)
   }
   
-
-  // Color caused pain in some terminals
-  // console.log('\x1b[32m%s\x1b[40m', '\n  ' + line1s);
-  // console.log('\x1b[32m%s\x1b[40m', `  │`,'\x1b[37m', line2s,'\x1b[32m', `│`);
-  // console.log('\x1b[32m%s\x1b[40m', `  │`,'\x1b[32m', spxUrl + spacer,'\x1b[32m', `│`);
-  // console.log('\x1b[32m%s\x1b[40m', '  ' + line3s);
-  // console.log('\x1b[37m%s\x1b[40m', '');
-
   console.log('\n  ' + line1s);
   console.log('  │ ' + line2s + '   │');
   console.log('  │ ' + spxUrl + spacer + '   │');
   console.log('  ' + line3s);
   console.log('');
 
-  if ( config.general.launchchrome==true ) {
+  if ( config.general.launchBrowser || global.generatingDefaultConfig ) {
     try {
       (async () => {
-        // Opens the URL in a specified browser.
-        await open(`http://${ipad}:${port}/`, {app: 'chrome'});
+        require("openurl").open(`http://${ipad}:${port}/`)
       })();
     } catch (error) {
-      console.warn('Could not open Chrome application')
+      console.warn('Could not open browser.')
     }
   }
 
 });
 
 
-
-
-
 // io must be declared as 'global', so routes can access it.
 global.io = require('socket.io')(server);
 var clients = {}
-io.sockets.on('connection', function (socket) {
 
+io.sockets.on('connection', function (socket) {
   logger.verbose('*** Socket connection (' + socket.id + ") Connections: " + io.engine.clientsCount);
   clients[socket.id] = socket;
+  notifyMultipleControllers(); // on Connection
 
   socket.on('disconnect', async function () {
     let SPXClientName = clients[socket.id].SPXClientName || '** no name **';
@@ -925,8 +1002,8 @@ io.sockets.on('connection', function (socket) {
     data.source = 'windowClose'
     data.clientName = SPXClientName
     io.emit('SPXMessage2Client', data);
+    notifyMultipleControllers(); // on Disconnect
   }); // end disconnect
-
 
   socket.on('SPXWebRendererMessage', function (data) {
     // This incoming message is intended for WebPlayer.
@@ -946,6 +1023,12 @@ io.sockets.on('connection', function (socket) {
         logger.verbose('Identified [' + socket.id + '] as [' + data.name + ']');
         break;
 
+      case 'saveToLog': // Added in 1.3.0
+        let level = data.level || 'info';
+        let ref   = data.fileref || 'unknown';
+        logger[level]('TemplateLog [' + ref + '] --> ' + data.message);
+        break;
+
       case 'command-name-here':
         // action here
         break;
@@ -957,3 +1040,27 @@ io.sockets.on('connection', function (socket) {
 }); // end socket-io
 
 
+function notifyMultipleControllers() {
+  // Added in 1.2.0
+  // Count how many controllers are connected to Server.
+  // This can be ignored with a config flag.
+  if ( config.general?.disableSeveralControllersWarning==true ) {
+    logger.debug('notifyMultipleControllers feature is disabled with a config flag.');
+    return;
+  }
+
+
+  setTimeout(function(){ 
+    let count = 0;
+    for (const [key, value] of Object.entries(clients)) {
+      if (value.SPXClientName == 'SPX_CONTROLLER') {
+        count++;
+      }
+    }
+    logger.debug('notifyMultipleControllers: ' + count + ' controllers connected.');
+    let data = {};
+    data.spxcmd = 'notifyMultipleControllers'
+    data.count = count
+    io.emit('SPXMessage2Client', data);    
+  }, 100); // small delay
+}
